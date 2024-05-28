@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Se Programe: Sua Agenda de Shows e Eventos em Fortaleza</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Se Programe: Sua Agenda de Shows e Eventos em Fortaleza</h1>
+    </header>
+    <main>
+        <section class="event">
+            <h2>Título do Evento - 28 de Maio, 2024</h2>
+            <img src="evento.jpg" alt="Foto do Evento" class="event-photo">
+            <button onclick="window.location.href='cadastro.html'">Cadastrar na Lista VIP</button>
+        </section>
+    </main>
+</body>
+</html>

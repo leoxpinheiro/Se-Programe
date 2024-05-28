@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - Se Programe</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Se Programe: Cadastro na Lista VIP</h1>
+    </header>
+    <main>
+        <section class="main-event">
+            <img src="evento-principal.jpg" alt="Foto do Evento Principal" class="main-event-photo">
+            <div class="event-details">
+                <h2>Informações sobre o Evento</h2>
+                <p>Aqui estão os detalhes do evento e o regulamento para participar.</p>
+            </div>
+        </section>
+        <form class="registration-form">
+            <div class="form-group">
+                <label for="name">Nome Completo:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label>Sexo:</label>
+                <input type="radio" id="male" name="gender" value="male">
+                <label for="male">Masculino</label>
+                <input type="radio" id="female" name="gender" value="female">
+                <label for="female">Feminino</label>
+            </div>
+            <button type="button" onclick="addName()">Adicionar Mais Nome</button>
+            <div class="partial-list">
+                <h3>Lista Parcial</h3>
+                <ul id="nameList"></ul>
+            </div>
+        </form>
+    </main>
+    <script>
+        function addName() {
+            const nameInput = document.getElementById('name');
+            const nameList = document.getElementById('nameList');
+            if (nameInput.value) {
+                const li = document.createElement('li');
+                li.textContent = nameInput.value;
+                nameList.appendChild(li);
+                nameInput.value = '';
+            }
+        }
+    </script>
+</body>
+</html>
