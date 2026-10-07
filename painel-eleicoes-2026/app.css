@@ -29,3 +29,18 @@ input[type=text],input[type=password],input[type=file],select{width:100%;min-wid
 .regionBoard{margin-bottom:12px}.regionCards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.regionCard{border:1px solid #fed7aa;background:#fffaf5;border-radius:12px;padding:11px;text-align:left;cursor:pointer;color:#7c2d12}.regionCard span{display:block;font-size:10px;font-weight:900;text-transform:uppercase;line-height:1.25}.regionCard b{display:block;font-size:21px;margin-top:4px;color:#172033}.regionCard small{display:block;font-size:9px;color:#9a5b20;margin-top:3px;line-height:1.35}.regionCard.active{background:#f47c20;color:#fff;border-color:#f47c20;box-shadow:0 8px 20px #f47c2026}.regionCard.active b,.regionCard.active small{color:#fff}.regionMini{display:block;color:#9a5b20;font-size:8px;font-weight:800;margin-top:2px;text-transform:uppercase}.leoTools select{border-color:#fed7aa;background:#fffaf5}
 @media(max-width:1100px){.regionCards{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:760px){.regionCards{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.regionCards{grid-template-columns:1fr}}
 @media print{.regionBoard{display:none!important}.regionMini{display:none}}
+
+/* Compact regional analysis cards */
+.regionBoard{padding:12px!important}
+.regionBoard .title{margin-bottom:3px}
+.regionCards{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:6px!important;margin-top:8px!important}
+.regionCard{padding:8px 9px!important;border-radius:10px!important;min-height:72px!important}
+.regionCard span{font-size:8px!important;line-height:1.15!important}
+.regionCard b{font-size:17px!important;margin-top:3px!important;line-height:1!important}
+.regionCard small{font-size:8px!important;margin-top:3px!important;line-height:1.2!important}
+.regionCard.allRegion{background:#172033;color:#fff;border-color:#172033}
+.regionCard.allRegion b,.regionCard.allRegion small{color:#fff}
+.regionCard.allRegion.active{background:#f47c20;border-color:#f47c20}
+@media(max-width:1180px){.regionCards{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+@media(max-width:900px){.regionCards{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:650px){.regionCards{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
