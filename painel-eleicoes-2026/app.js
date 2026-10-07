@@ -109,7 +109,8 @@ function drawLeonardo(){
 
  let regAgg=new Map();
  for(let x of stateAll){let r=x.regiao||'Sem região';if(!regAgg.has(r))regAgg.set(r,{name:r,v22:0,v26:0,count:0});let a=regAgg.get(r);a.v22+=Number(x['2022']||0);a.v26+=x.v2026;a.count++}
- $('leoRegionCards').innerHTML=[...regAgg.values()].sort((a,b)=>b.v26-a.v26).map(r=>{let d=r.v26-r.v22,p=r.v22?d/r.v22*100:0;return '<button class="regionCard '+(leoRegion===r.name?'active':'')+'" data-region="'+r.name.replace(/"/g,'&quot;')+'"><span>'+r.name+'</span><b>'+fmt(r.v26)+'</b><small>'+r.count+' municípios • '+(d>=0?'+':'')+fmt(d)+' votos • '+(p>=0?'+':'')+p.toFixed(1)+'%</small></button>'}).join('');
+ let regionCards=[...regAgg.values()].sort((a,b)=>b.v26-a.v26).map(r=>{let d=r.v26-r.v22,p=r.v22?d/r.v22*100:0;return '<button class="regionCard '+(leoRegion===r.name?'active':'')+'" data-region="'+r.name.replace(/"/g,'&quot;')+'"><span>'+r.name+'</span><b>'+fmt(r.v26)+'</b><small>'+r.count+' mun. • '+(d>=0?'+':'')+fmt(d)+' • '+(p>=0?'+':'')+p.toFixed(1)+'%</small></button>'}).join('');
+ $('leoRegionCards').innerHTML='<button class="regionCard allRegion '+(leoRegion==='Todas'?'active':'')+'" data-region="Todas"><span>CEARÁ • TODAS</span><b>'+fmt(stateTotal)+'</b><small>184 municípios • visão geral</small></button>'+regionCards;
  document.querySelectorAll('.regionCard').forEach(x=>x.onclick=()=>{leoRegion=x.dataset.region;$('leoRegion').value=leoRegion;drawLeonardo();window.scrollTo({top:$('leonardo').offsetTop-20,behavior:'smooth'})});
 
  let totals=[['2006',all.reduce((a,x)=>a+Number(x['2006']||0),0)],['2010',all.reduce((a,x)=>a+Number(x['2010']||0),0)],['2014',all.reduce((a,x)=>a+Number(x['2014']||0),0)],['2018',all.reduce((a,x)=>a+Number(x['2018']||0),0)],['2022',total22],['2026',total26]],mx=Math.max(...totals.map(x=>x[1]),1);
