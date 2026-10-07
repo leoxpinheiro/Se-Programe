@@ -44,3 +44,7 @@ input[type=text],input[type=password],input[type=file],select{width:100%;min-wid
 @media(max-width:1180px){.regionCards{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
 @media(max-width:900px){.regionCards{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
 @media(max-width:650px){.regionCards{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+.leoSubnav{display:flex;gap:6px;background:#fff3e8;border:1px solid #fed7aa;border-radius:12px;padding:5px;width:max-content;max-width:100%;margin:0 0 12px}.leoSubnav button{border:0;background:transparent;color:#9a3412;padding:10px 14px;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer}.leoSubnav button.active{background:#f47c20;color:#fff;box-shadow:0 3px 10px #f47c2022}.leoView{display:none}.leoView.active{display:block}
+@media(max-width:620px){.leoSubnav{width:100%}.leoSubnav button{flex:1;padding:9px 6px}}
+@media print{.leoSubnav,#leoAnaliseView{display:none!important}#leoListaView{display:block!important}}
