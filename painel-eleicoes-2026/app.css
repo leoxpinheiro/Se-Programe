@@ -48,3 +48,61 @@ input[type=text],input[type=password],input[type=file],select{width:100%;min-wid
 .leoSubnav{display:flex;gap:6px;background:#fff3e8;border:1px solid #fed7aa;border-radius:12px;padding:5px;width:max-content;max-width:100%;margin:0 0 12px}.leoSubnav button{border:0;background:transparent;color:#9a3412;padding:10px 14px;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer}.leoSubnav button.active{background:#f47c20;color:#fff;box-shadow:0 3px 10px #f47c2022}.leoView{display:none}.leoView.active{display:block}
 @media(max-width:620px){.leoSubnav{width:100%}.leoSubnav button{flex:1;padding:9px 6px}}
 @media print{.leoSubnav,#leoAnaliseView{display:none!important}#leoListaView{display:block!important}}
+
+
+/* Consulta municipal e impressão */
+.citySummaryCard{margin-top:12px;border-top:3px solid var(--orange)}
+.sectionDetailCard{margin-top:12px}
+.citySummaryTop,.sectionTitleRow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.citySummaryMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.cityMiniMetric{background:#f8fafc;border:1px solid #edf0f3;border-radius:12px;padding:11px;min-width:0}
+.cityMiniMetric small{display:block;font-size:9px;font-weight:900;text-transform:uppercase;color:#667085}
+.cityMiniMetric b{display:block;font-size:22px;letter-spacing:-.03em;margin-top:3px}
+.cityMiniMetric span{display:block;font-size:9px;color:#667085;margin-top:2px}
+.cityMiniMetric .bestBairro{font-size:15px;line-height:1.15;margin-top:6px;white-space:normal}
+.citySummaryTable .cityRow{cursor:pointer}
+.citySummaryTable .cityRow:hover td{background:#fff7ed}
+.sharePill{display:inline-block;min-width:50px;text-align:center;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:4px 7px;font-weight:850}
+.cityPrintHead,.cityPrintFooter{display:none}
+#printCity{background:#f47c20;color:#fff}
+@media(max-width:800px){.citySummaryMetrics{grid-template-columns:1fr 1fr}.citySummaryTop,.sectionTitleRow{flex-direction:column}}
+@media(max-width:500px){.citySummaryMetrics{grid-template-columns:1fr}}
+
+@media print{
+  @page{size:A4 portrait;margin:12mm}
+  body.printCity{background:#fff!important}
+  body.printCity .top,
+  body.printCity .nav,
+  body.printCity #work,
+  body.printCity #leonardo,
+  body.printCity #official>.grid2,
+  body.printCity #officialMetrics,
+  body.printCity .officialFiltersCard,
+  body.printCity .sectionDetailCard,
+  body.printCity .toast{display:none!important}
+  body.printCity #official{display:block!important}
+  body.printCity .wrap{max-width:none!important;padding:0!important;margin:0!important}
+  body.printCity .citySummaryCard{display:block!important;border:0!important;border-radius:0!important;padding:0!important;box-shadow:none!important;margin:0!important}
+  body.printCity .cityPrintHead{display:block!important;border-bottom:2px solid #172033;padding:0 0 10px;margin-bottom:10px}
+  body.printCity .cityPrintHead .printEyebrow{font-size:9px;font-weight:900;letter-spacing:.08em;color:#f47c20}
+  body.printCity .cityPrintHead h2{font-size:24px;margin:3px 0 2px}
+  body.printCity .cityPrintHead p{font-size:11px;color:#475467;margin:0}
+  body.printCity .citySummaryTop .hint,
+  body.printCity .citySummaryTag{display:none!important}
+  body.printCity .citySummaryTop{margin-bottom:6px}
+  body.printCity .citySummaryTop .title{font-size:15px}
+  body.printCity .citySummaryMetrics{grid-template-columns:repeat(4,1fr)!important;gap:5px;margin:6px 0 10px}
+  body.printCity .cityMiniMetric{padding:7px;border-radius:6px}
+  body.printCity .cityMiniMetric small{font-size:7px}
+  body.printCity .cityMiniMetric b{font-size:16px}
+  body.printCity .cityMiniMetric .bestBairro{font-size:10px}
+  body.printCity .cityMiniMetric span{font-size:7px}
+  body.printCity .citySummaryTable{overflow:visible!important;border-radius:0!important;margin-top:4px}
+  body.printCity .citySummaryTable table{table-layout:auto!important}
+  body.printCity .citySummaryTable thead{display:table-header-group}
+  body.printCity .citySummaryTable tr{break-inside:avoid}
+  body.printCity .citySummaryTable th,
+  body.printCity .citySummaryTable td{font-size:8px!important;padding:4px 5px!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+  body.printCity .sharePill{padding:1px 4px;border:0;background:transparent}
+  body.printCity .cityPrintFooter{display:block!important;margin-top:8px;padding-top:6px;border-top:1px solid #d0d5dd;font-size:7px;color:#667085}
+}
