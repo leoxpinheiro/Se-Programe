@@ -15,14 +15,14 @@ function shell(){
  h.push('<div class="nav"><button class="active" data-p="official">📊 VOTAÇÃO OFICIAL</button><button data-p="work">📁 LISTAS & TRABALHO</button><button data-p="leonardo">🟠 LEONARDO • HISTÓRICO</button></div>');
  h.push('<section id="official" class="page active"><div class="grid2"><div class="card"><div class="title">1. Base oficial de votos do TSE</div><div class="hint">Depois da primeira importação, os votos ficam salvos no painel e aparecem automaticamente nos filtros por município, bairro, zona e seção.</div><div class="actions"><a class="btn dark" href="'+TSE+'">Baixar arquivo oficial CE</a></div><input id="voteFile" class="file" type="file" accept=".zip,.csv"><div id="voteStatus" class="status">Verificando a base de votos salva...</div><div class="progress"><div id="voteProg"></div></div></div>');
  h.push('<div class="card"><div class="title">2. Candidatos da análise</div><div class="hint">Pode usar só Leonardo, Leonardo + Nenen, ou cadastrar outro candidato.</div><div id="candChips" class="candidates" style="margin-top:9px"></div><div class="candidateForm"><div class="field"><label>Nome</label><input id="candName" type="text"></div><div class="field"><label>Número</label><input id="candNumber" type="text"></div><div class="field"><label>Cargo</label><input id="candOffice" type="text"></div><div class="field"><label>Cor</label><input id="candColor" type="color" value="#f47c20"></div><button id="saveCand" class="btn blue">+ Cadastrar</button></div></div></div>');
- h.push('<div id="officialMetrics" class="metrics"></div><div class="card"><div class="filters"><div class="field"><label>Município</label><select id="city"></select></div><div class="field"><label>Bairro</label><select id="bairro"></select></div><div class="field"><label>Zona</label><select id="zone"></select></div><div class="field"><label>Seção</label><input id="section" type="text" placeholder="0184"></div></div><div class="actions"><button id="refreshOfficial" class="btn dark">Atualizar</button><button id="exportOfficial" class="btn outline">Exportar CSV</button><span id="offTag" class="tag"></span></div><div class="tableWrap"><table><thead id="offHead"></thead><tbody id="offBody"></tbody></table></div></div></section>');
+ h.push('<div id="officialMetrics" class="metrics"></div><div class="card officialFiltersCard"><div class="filters"><div class="field"><label>Município</label><select id="city"></select></div><div class="field"><label>Bairro</label><select id="bairro"></select></div><div class="field"><label>Zona</label><select id="zone"></select></div><div class="field"><label>Seção</label><input id="section" type="text" placeholder="0184"></div></div><div class="actions"><button id="refreshOfficial" class="btn dark">Atualizar</button><button id="printCity" class="btn orange">🖨️ Imprimir município</button><button id="exportCity" class="btn outline">Bairros CSV</button><button id="exportOfficial" class="btn outline">Seções CSV</button><span id="offTag" class="tag"></span></div></div><div id="citySummaryCard" class="card citySummaryCard"><div class="cityPrintHead" id="cityPrintHead"></div><div class="citySummaryTop"><div><div class="title">Resumo do município por bairro</div><div class="hint">Ranking de bairros pela votação. Clique em um bairro para abrir o detalhamento das seções abaixo.</div></div><span id="citySummaryTag" class="tag"></span></div><div id="citySummaryMetrics" class="citySummaryMetrics"></div><div class="tableWrap citySummaryTable"><table><thead id="cityHead"></thead><tbody id="cityBody"></tbody></table></div><div class="cityPrintFooter">Fonte: Tribunal Superior Eleitoral (TSE) • Eleições 2026</div></div><div class="card sectionDetailCard"><div class="sectionTitleRow"><div><div class="title">Detalhamento por local e seção</div><div class="hint">Use os filtros acima ou clique em um bairro no resumo municipal.</div></div><span id="sectionScope" class="tag"></span></div><div class="tableWrap"><table><thead id="offHead"></thead><tbody id="offBody"></tbody></table></div></div></section>');
  h.push('<section id="work" class="page"><div class="gridWork"><aside class="card"><div class="title">Listas salvas</div><div class="hint">Disponíveis em qualquer computador/celular que entrar no painel.</div><div id="savedLists" style="margin-top:10px"></div><div class="sep"></div><div class="title">Adicionar / substituir lista</div><div class="field"><label>Nome da lista</label><input id="listName" type="text" placeholder="Ex.: Liderança João"></div><input id="listFile" class="file" type="file" accept=".pdf,.odt,.xlsx,.xls,.ods,.csv,.tsv,.txt,.json"><button id="saveList" class="btn blue" style="width:100%;margin-top:8px">Salvar lista no painel</button><div id="listStatus" class="status">Aceita PDF, ODT, Excel, CSV, TXT e JSON.</div></aside>');
  h.push('<main><div id="workMetrics" class="metrics"></div><div class="card"><div class="filters"><div class="field"><label>Bairro</label><select id="wBairro"></select></div><div class="field"><label>Local</label><select id="wLocal"></select></div><div class="field"><label>Zona</label><select id="wZone"></select></div><div class="field"><label>Seção</label><input id="wSection" type="text" placeholder="0184"></div></div><div class="actions"><button id="refreshWork" class="btn dark">Atualizar</button><button id="exportWork" class="btn outline">Exportar comparação</button><span id="workTag" class="tag"></span></div></div><div class="grid2" style="margin-top:12px"><div class="card"><div class="title">Concentração por bairro</div><div id="workBars" class="bars"></div></div><div class="card"><div class="title">Resumo das listas</div><div id="listSummary"></div></div></div><div class="card" style="margin-top:12px"><div class="title">Seções das listas</div><div class="hint">Os votos são totais agregados da seção, não votos atribuídos às pessoas da lista.</div><div class="tableWrap"><table><thead id="workHead"></thead><tbody id="workBody"></tbody></table></div></div></main></div></section>');
  h.push('<section id="leonardo" class="page"><div class="leoHero"><div><div class="eyebrow">LEONARDO PINHEIRO • DEPUTADO ESTADUAL</div><h2>Votação por município</h2><p>Histórico de 2006 a 2026, comparação municipal e análise para impressão.</p></div><div class="leoHeroBadge">40999</div></div><div id="leoSummary" class="leoSummary"></div><div class="leoSubnav"><button class="active" data-leo-view="lista">📋 LISTA & IMPRESSÃO</button><button data-leo-view="analise">📈 ANÁLISES</button></div><div id="leoListaView" class="leoView active"><div class="card leoTools"><div><div class="field"><label>Região de planejamento</label><select id="leoRegion"><option value="Todas">Todas as regiões</option></select></div><div class="leoSearch" style="margin-top:8px"><input id="leoSearch" type="text" placeholder="Buscar município"></div></div><div><div class="leoSorts"><button class="leoSort active" data-sort="2026desc">Mais votos 2026</button><button class="leoSort" data-sort="alpha">Alfabética</button><button class="leoSort" data-sort="cresceu">Maior ganho em votos</button><button class="leoSort" data-sort="caiu">Maior queda em votos</button><button class="leoSort" data-sort="2022desc">Mais votos 2022</button></div><div class="leoThresholds"><span>Faixa 2026:</span><button class="leoMin active" data-min="0">Todos</button><button class="leoMin" data-min="100">≥ 100</button><button class="leoMin" data-min="300">≥ 300</button><button class="leoMin" data-min="500">≥ 500</button><button class="leoMin" data-min="1000">≥ 1.000</button></div></div><div class="actions"><button id="leoExport" class="btn outline">Baixar planilha</button><button id="leoPrint" class="btn orange">Imprimir</button><span id="leoTag" class="tag"></span></div></div><div class="card" style="margin-top:12px"><div class="title">Município por município</div><div class="hint">2026 já está fixo com os 184 municípios informados. A diferença absoluta é o principal indicador; o percentual é complementar.</div><div class="tableWrap leoTable"><table><thead><tr><th>Nº</th><th>Município</th><th class="num">Eleitores</th><th class="num">2006</th><th class="num">2010</th><th class="num">2014</th><th class="num">2018</th><th class="num">2022</th><th class="num leo2026">2026</th><th class="num">Dif. votos</th><th class="num">% 22→26</th></tr></thead><tbody id="leoBody"></tbody></table></div></div></div><div id="leoAnaliseView" class="leoView"><div id="leoInsights" class="leoInsightGrid"></div><div class="card regionBoard"><div class="title">Análise por região</div><div class="hint">Clique em uma região para abrir o estudo dela. Ranking e gráficos são recalculados automaticamente.</div><div id="leoRegionCards" class="regionCards"></div></div><div class="grid2 leoCharts"><div class="card"><div class="title">Evolução total por eleição</div><div id="leoTrend" class="trend"></div></div><div class="card"><div class="title">Top municípios em 2026</div><div id="leoTop" class="bars"></div></div></div><div class="grid2 leoCharts"><div class="card"><div class="title">Distribuição da votação em 2026</div><div class="hint">Quantidade de municípios em cada faixa de votos.</div><div id="leoBands" class="bands"></div></div><div class="card"><div class="title">Movimento 2022 → 2026</div><div class="hint">Ganhos e perdas em votos absolutos, sem distorção de bases pequenas.</div><div id="leoMovement"></div></div></div><div class="grid2 leoCharts"><div class="card"><div class="title">Maiores ganhos em votos</div><div id="leoGains" class="bars"></div></div><div class="card"><div class="title">Maiores perdas em votos</div><div id="leoLosses" class="bars"></div></div></div></div></section>');
  h.push('</div>');
  $('app').innerHTML=h.join('');
  document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.p).classList.add('active');if(b.dataset.p==='work')workData();if(b.dataset.p==='leonardo')drawLeonardo()});
- $('logout').onclick=()=>{sessionStorage.removeItem('electionPassword');pw='';login()}; $('voteFile').onchange=loadVotes; $('saveCand').onclick=saveCand; $('refreshOfficial').onclick=drawOfficial; $('exportOfficial').onclick=exportOfficial; ['city','bairro','zone'].forEach(i=>$(i).onchange=drawOfficial); $('section').oninput=drawOfficial; $('saveList').onclick=saveList; $('refreshWork').onclick=drawWork; $('exportWork').onclick=exportWork; ['wBairro','wLocal','wZone'].forEach(i=>$(i).onchange=drawWork); $('wSection').oninput=drawWork; document.querySelectorAll('.leoSubnav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.leoSubnav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.leoView').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.leoView==='lista'?'leoListaView':'leoAnaliseView').classList.add('active');}); $('leoSearch').oninput=drawLeonardo; $('leoRegion').onchange=()=>{leoRegion=$('leoRegion').value;drawLeonardo()}; document.querySelectorAll('.leoSort').forEach(x=>x.onclick=()=>{leoSort=x.dataset.sort;document.querySelectorAll('.leoSort').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); document.querySelectorAll('.leoMin').forEach(x=>x.onclick=()=>{leoMin=Number(x.dataset.min||0);document.querySelectorAll('.leoMin').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); $('leoExport').onclick=exportLeonardo; $('leoPrint').onclick=()=>window.print();
+ $('logout').onclick=()=>{sessionStorage.removeItem('electionPassword');pw='';login()}; $('voteFile').onchange=loadVotes; $('saveCand').onclick=saveCand; $('refreshOfficial').onclick=drawOfficial; $('exportOfficial').onclick=exportOfficial; $('exportCity').onclick=exportCitySummary; $('printCity').onclick=printCitySummary; ['city','bairro','zone'].forEach(i=>$(i).onchange=drawOfficial); $('section').oninput=drawOfficial; $('saveList').onclick=saveList; $('refreshWork').onclick=drawWork; $('exportWork').onclick=exportWork; ['wBairro','wLocal','wZone'].forEach(i=>$(i).onchange=drawWork); $('wSection').oninput=drawWork; document.querySelectorAll('.leoSubnav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.leoSubnav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.leoView').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.leoView==='lista'?'leoListaView':'leoAnaliseView').classList.add('active');}); $('leoSearch').oninput=drawLeonardo; $('leoRegion').onchange=()=>{leoRegion=$('leoRegion').value;drawLeonardo()}; document.querySelectorAll('.leoSort').forEach(x=>x.onclick=()=>{leoSort=x.dataset.sort;document.querySelectorAll('.leoSort').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); document.querySelectorAll('.leoMin').forEach(x=>x.onclick=()=>{leoMin=Number(x.dataset.min||0);document.querySelectorAll('.leoMin').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); $('leoExport').onclick=exportLeonardo; $('leoPrint').onclick=()=>window.print();
 }
 async function loadBoot(){boot=await api('bootstrap');active=new Set(boot.candidates.filter(c=>c.enabled).map(c=>String(c.number)))}
 
@@ -142,6 +142,82 @@ function fillCities(){let old=$('city')?$('city').value:'',cs=[...new Set(places
 function vmap(){let m=new Map();for(let r of votes){let k=r.zone+'|'+r.sec;if(!m.has(k))m.set(k,{});m.get(k)[r.num]=(m.get(k)[r.num]||0)+r.votes}return m}
 function refill(){let city=$('city').value,bo=$('bairro').value,zo=$('zone').value,p=places.filter(x=>!city||x.city===city),bs=[...new Set(p.map(x=>x.bairro).filter(Boolean))].sort();$('bairro').innerHTML='<option value="">Todos os bairros</option>'+bs.map(x=>'<option '+(x===bo?'selected':'')+'>'+x+'</option>').join('');p=p.filter(x=>!$('bairro').value||x.bairro===$('bairro').value);let zs=[...new Set(p.map(x=>x.zone))].sort();$('zone').innerHTML='<option value="">Todas</option>'+zs.map(x=>'<option '+(x===zo?'selected':'')+'>'+x+'</option>').join('')}
 function offRows(){let c=$('city').value,b=$('bairro').value,z=$('zone').value,s=$('section').value.trim()?pad($('section').value,4):'',vm=vmap();return places.filter(p=>(!c||p.city===c)&&(!b||p.bairro===b)&&(!z||p.zone===z)&&(!s||p.sec===s)).map(p=>Object.assign({},p,{v:vm.get(p.zone+'|'+p.sec)||{}}))}
+
+function citySummaryRows(){
+  let city=$('city')?.value||'';
+  if(!city)return[];
+  let vm=vmap(), sel=boot.candidates.filter(c=>active.has(String(c.number))), ag=new Map();
+  for(let p of places){
+    if(p.city!==city)continue;
+    let bairro=p.bairro||'SEM BAIRRO', k=bairro;
+    if(!ag.has(k))ag.set(k,{bairro,sections:new Set(),votes:{}});
+    let a=ag.get(k); a.sections.add(p.zone+'|'+p.sec);
+    let vv=vm.get(p.zone+'|'+p.sec)||{};
+    for(let cand of sel)a.votes[cand.number]=(a.votes[cand.number]||0)+Number(vv[cand.number]||0);
+  }
+  let primary=sel[0]?.number, rows=[...ag.values()].map(x=>({bairro:x.bairro,sections:x.sections.size,votes:x.votes}));
+  rows.sort((a,b)=>{
+    let av=primary?Number(a.votes[primary]||0):0,bv=primary?Number(b.votes[primary]||0):0;
+    return bv-av||a.bairro.localeCompare(b.bairro,'pt-BR');
+  });
+  return rows;
+}
+function drawCitySummary(){
+  if(!$('citySummaryCard'))return;
+  let city=$('city').value||'', sel=boot.candidates.filter(c=>active.has(String(c.number))), rows=citySummaryRows(), primary=sel[0];
+  if(!city){
+    $('cityPrintHead').innerHTML='';
+    $('citySummaryMetrics').innerHTML='';
+    $('cityHead').innerHTML='';
+    $('cityBody').innerHTML='<tr><td style="padding:20px;text-align:center;color:#667085">Escolha um município para ver e imprimir o resumo por bairro.</td></tr>';
+    $('citySummaryTag').textContent='Escolha um município';
+    return;
+  }
+  let total=primary?rows.reduce((a,r)=>a+Number(r.votes[primary.number]||0),0):0;
+  let withVotes=primary?rows.filter(r=>Number(r.votes[primary.number]||0)>0).length:0;
+  let best=primary?rows.find(r=>Number(r.votes[primary.number]||0)>0):null;
+  let sectionCount=rows.reduce((a,r)=>a+r.sections,0);
+  $('cityPrintHead').innerHTML='<div class="printEyebrow">PAINEL ELEIÇÕES 2026 • RELATÓRIO MUNICIPAL</div><h2>'+city+'</h2><p>'+(primary?(primary.name+' • '+primary.number):'Votação por bairro')+'</p>';
+  $('citySummaryMetrics').innerHTML=
+    '<div class="cityMiniMetric"><small>Votos no município</small><b>'+(primary?fmt(total):'—')+'</b></div>'+
+    '<div class="cityMiniMetric"><small>Bairros</small><b>'+fmt(rows.length)+'</b><span>'+withVotes+' com votos</span></div>'+
+    '<div class="cityMiniMetric"><small>Seções</small><b>'+fmt(sectionCount)+'</b></div>'+
+    '<div class="cityMiniMetric"><small>Maior votação</small><b class="bestBairro">'+(best?best.bairro:'—')+'</b><span>'+(best&&primary?fmt(best.votes[primary.number]||0)+' votos':'')+'</span></div>';
+  $('cityHead').innerHTML='<tr><th class="center">#</th><th>Bairro</th><th class="num">Seções</th>'+sel.map(c=>'<th class="num" style="color:'+c.color+'">'+c.name+'</th>').join('')+(primary?'<th class="num">% município</th>':'')+'</tr>';
+  $('cityBody').innerHTML=rows.map((r,i)=>{
+    let pv=primary?Number(r.votes[primary.number]||0):0, pct=total?pv/total*100:0;
+    return '<tr class="cityRow" data-bairro="'+r.bairro.replace(/"/g,'&quot;')+'"><td class="center">'+(i+1)+'</td><td><b>'+r.bairro+'</b></td><td class="num">'+fmt(r.sections)+'</td>'+
+      sel.map(c=>'<td class="num"><b>'+fmt(r.votes[c.number]||0)+'</b></td>').join('')+
+      (primary?'<td class="num"><span class="sharePill">'+pct.toFixed(1)+'%</span></td>':'')+'</tr>';
+  }).join('');
+  $('citySummaryTag').textContent=rows.length+' bairros • '+(primary?fmt(total)+' votos':'resumo municipal');
+  document.querySelectorAll('.cityRow').forEach(tr=>tr.onclick=()=>{
+    let b=tr.dataset.bairro;
+    if([...$('bairro').options].some(o=>o.value===b))$('bairro').value=b;
+    $('zone').value=''; $('section').value='';
+    drawOfficial();
+    $('sectionScope')?.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+}
+function exportCitySummary(){
+  let city=$('city').value||'';
+  if(!city)return toast('Escolha um município primeiro.');
+  let sel=boot.candidates.filter(c=>active.has(String(c.number))), rows=citySummaryRows(), primary=sel[0];
+  let total=primary?rows.reduce((a,r)=>a+Number(r.votes[primary.number]||0),0):0;
+  exp(('bairros_'+nm(city).toLowerCase()+'.csv'),rows.map((r,i)=>Object.assign({
+    Ranking:i+1,Municipio:city,Bairro:r.bairro,Secoes:r.sections
+  },Object.fromEntries(sel.map(c=>[c.name+' '+c.number,r.votes[c.number]||0])),primary?{'Percentual_municipio':total?((r.votes[primary.number]||0)/total*100).toFixed(2):'0.00'}:{})));
+}
+function printCitySummary(){
+  let city=$('city').value||'';
+  if(!city)return toast('Escolha o município que deseja imprimir.');
+  if(!votes.length)return toast('A base de votos ainda não está carregada.');
+  document.body.classList.add('printCity');
+  let done=()=>{document.body.classList.remove('printCity');window.removeEventListener('afterprint',done)};
+  window.addEventListener('afterprint',done);
+  window.print();
+}
+
 function drawOfficial(){
   if(!$('official'))return;
   refill();
@@ -163,6 +239,8 @@ function drawOfficial(){
     return '<td class="num" style="color:'+c.color+';font-weight:850">'+(has?fmt(r.v[c.number]||0):'—')+'</td>';
   }).join('')+'</tr>').join('');
   $('offTag').textContent=hasAny?(rs.length+' seções • base TSE carregada'):'Base de votos ainda não carregada';
+  if($('sectionScope'))$('sectionScope').textContent=scope+' • '+rs.length+' seções';
+  drawCitySummary();
 }
 
 function exp(name,rows){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(rows,{delimiter:';'})],{type:'text/csv'}));a.download=name;a.click()}
