@@ -1,6 +1,6 @@
 
 const API='https://jwbrygmzruoxihmjqazg.supabase.co/functions/v1/election-2026-panel';
-const TSE='https://cdn.tse.jus.br/estatistica/sead/eleicoes/eleicoes2026/buweb/bweb_1t_CE_051020261403.zip';
+const TSE='https://cdn.tse.jus.br/estatistica/sead/odsele/votacao_secao/votacao_secao_2026_CE.zip';
 const $=i=>document.getElementById(i), dg=v=>String(v??'').replace(/\.0$/,'').replace(/\D/g,''), cl=v=>(dg(v).replace(/^0+/,'')||'0'), pad=(v,n)=>cl(v).padStart(n,'0'), nm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 let pw=sessionStorage.getItem('electionPassword')||'', boot={lists:[],candidates:[]}, places=[], votes=[], sections=[], active=new Set(), leonardoHist=null, leoSort='2026desc', leoMin=0, leoRegion='Todas';
 const fmt=n=>Number(n||0).toLocaleString('pt-BR');
@@ -8,12 +8,12 @@ function toast(m){let x=document.createElement('div');x.className='toast';x.text
 async function api(action,extra){let r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({password:pw,action:action},extra||{}))}),t=await r.text(),d={};try{d=JSON.parse(t)}catch{}if(!r.ok)throw Error(d.error||('Erro '+r.status));return d}
 function login(err){$('app').innerHTML='<div class="login"><div class="loginCard"><h1>🗳️ Painel Eleições 2026</h1><p>Área restrita.</p><div class="loginRow"><input id="pass" type="password" placeholder="Senha" autofocus><button id="go" class="btn orange">Entrar</button></div><div class="loginErr">'+(err||'')+'</div></div></div>';$('go').onclick=enter;$('pass').onkeydown=e=>{if(e.key==='Enter')enter()}}
 async function enter(){pw=$('pass').value;try{await api('auth');sessionStorage.setItem('electionPassword',pw);start()}catch{pw='';login('Senha incorreta.')}}
-async function start(){try{await api('auth')}catch{return login()} shell();try{await Promise.all([loadBoot(),loadPlaces(),loadLeonardo()]);drawCands();drawLists();drawOfficial();drawLeonardo();await workData()}catch(e){toast(e.message)}}
+async function start(){try{await api('auth')}catch{return login()} shell();try{await Promise.all([loadBoot(),loadPlaces(),loadLeonardo()]);await loadStoredVotes();drawCands();drawLists();drawOfficial();drawLeonardo();await workData()}catch(e){toast(e.message)}}
 function shell(){
  let h=[];
  h.push('<div class="wrap"><div class="top"><div><h1>🗳️ Painel Eleições 2026</h1><div class="sub">Votação oficial e área de trabalho separadas.</div><span class="okpill">BASE DE BAIRROS/SEÇÕES FIXA</span></div><button id="logout" class="btn red">Sair</button></div>');
  h.push('<div class="nav"><button class="active" data-p="official">📊 VOTAÇÃO OFICIAL</button><button data-p="work">📁 LISTAS & TRABALHO</button><button data-p="leonardo">🟠 LEONARDO • HISTÓRICO</button></div>');
- h.push('<section id="official" class="page active"><div class="grid2"><div class="card"><div class="title">1. Carregar votos do TSE</div><div class="hint">Único arquivo grande manual. Bairros, locais, zonas e seções já ficam no site.</div><div class="actions"><a class="btn dark" href="'+TSE+'">Baixar votos CE</a></div><input id="voteFile" class="file" type="file" accept=".zip,.csv"><div id="voteStatus" class="status">Aguardando o arquivo de votos.</div><div class="progress"><div id="voteProg"></div></div></div>');
+ h.push('<section id="official" class="page active"><div class="grid2"><div class="card"><div class="title">1. Base oficial de votos do TSE</div><div class="hint">Depois da primeira importação, os votos ficam salvos no painel e aparecem automaticamente nos filtros por município, bairro, zona e seção.</div><div class="actions"><a class="btn dark" href="'+TSE+'">Baixar arquivo oficial CE</a></div><input id="voteFile" class="file" type="file" accept=".zip,.csv"><div id="voteStatus" class="status">Verificando a base de votos salva...</div><div class="progress"><div id="voteProg"></div></div></div>');
  h.push('<div class="card"><div class="title">2. Candidatos da análise</div><div class="hint">Pode usar só Leonardo, Leonardo + Nenen, ou cadastrar outro candidato.</div><div id="candChips" class="candidates" style="margin-top:9px"></div><div class="candidateForm"><div class="field"><label>Nome</label><input id="candName" type="text"></div><div class="field"><label>Número</label><input id="candNumber" type="text"></div><div class="field"><label>Cargo</label><input id="candOffice" type="text"></div><div class="field"><label>Cor</label><input id="candColor" type="color" value="#f47c20"></div><button id="saveCand" class="btn blue">+ Cadastrar</button></div></div></div>');
  h.push('<div id="officialMetrics" class="metrics"></div><div class="card"><div class="filters"><div class="field"><label>Município</label><select id="city"></select></div><div class="field"><label>Bairro</label><select id="bairro"></select></div><div class="field"><label>Zona</label><select id="zone"></select></div><div class="field"><label>Seção</label><input id="section" type="text" placeholder="0184"></div></div><div class="actions"><button id="refreshOfficial" class="btn dark">Atualizar</button><button id="exportOfficial" class="btn outline">Exportar CSV</button><span id="offTag" class="tag"></span></div><div class="tableWrap"><table><thead id="offHead"></thead><tbody id="offBody"></tbody></table></div></div></section>');
  h.push('<section id="work" class="page"><div class="gridWork"><aside class="card"><div class="title">Listas salvas</div><div class="hint">Disponíveis em qualquer computador/celular que entrar no painel.</div><div id="savedLists" style="margin-top:10px"></div><div class="sep"></div><div class="title">Adicionar / substituir lista</div><div class="field"><label>Nome da lista</label><input id="listName" type="text" placeholder="Ex.: Liderança João"></div><input id="listFile" class="file" type="file" accept=".pdf,.odt,.xlsx,.xls,.ods,.csv,.tsv,.txt,.json"><button id="saveList" class="btn blue" style="width:100%;margin-top:8px">Salvar lista no painel</button><div id="listStatus" class="status">Aceita PDF, ODT, Excel, CSV, TXT e JSON.</div></aside>');
@@ -25,18 +25,146 @@ function shell(){
  $('logout').onclick=()=>{sessionStorage.removeItem('electionPassword');pw='';login()}; $('voteFile').onchange=loadVotes; $('saveCand').onclick=saveCand; $('refreshOfficial').onclick=drawOfficial; $('exportOfficial').onclick=exportOfficial; ['city','bairro','zone'].forEach(i=>$(i).onchange=drawOfficial); $('section').oninput=drawOfficial; $('saveList').onclick=saveList; $('refreshWork').onclick=drawWork; $('exportWork').onclick=exportWork; ['wBairro','wLocal','wZone'].forEach(i=>$(i).onchange=drawWork); $('wSection').oninput=drawWork; document.querySelectorAll('.leoSubnav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.leoSubnav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.leoView').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.leoView==='lista'?'leoListaView':'leoAnaliseView').classList.add('active');}); $('leoSearch').oninput=drawLeonardo; $('leoRegion').onchange=()=>{leoRegion=$('leoRegion').value;drawLeonardo()}; document.querySelectorAll('.leoSort').forEach(x=>x.onclick=()=>{leoSort=x.dataset.sort;document.querySelectorAll('.leoSort').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); document.querySelectorAll('.leoMin').forEach(x=>x.onclick=()=>{leoMin=Number(x.dataset.min||0);document.querySelectorAll('.leoMin').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); $('leoExport').onclick=exportLeonardo; $('leoPrint').onclick=()=>window.print();
 }
 async function loadBoot(){boot=await api('bootstrap');active=new Set(boot.candidates.filter(c=>c.enabled).map(c=>String(c.number)))}
+
+async function loadStoredVotes(){
+  let nums=boot.candidates.map(c=>String(c.number)).filter(Boolean);
+  try{
+    let d=await api('votes',{candidate_numbers:nums});
+    votes=(Array.isArray(d)?d:[]).map(r=>({city:String(r.city||'').trim(),zone:pad(r.zone,3),sec:pad(r.section,4),num:cl(r.candidate_number),votes:Number(r.votes||0)}));
+    setVoteStatus();
+  }catch(e){
+    votes=[];
+    setVoteStatus('Não consegui carregar a base salva: '+e.message,true);
+  }
+}
+function setVoteStatus(msg,isErr){
+  let el=$('voteStatus'); if(!el)return;
+  if(msg){el.textContent=msg;el.className='status '+(isErr?'err':'ok');return}
+  if(!votes.length){
+    el.textContent='Nenhuma base de votos salva ainda. Baixe o arquivo oficial CE acima e importe uma vez.';
+    el.className='status';
+    return;
+  }
+  let nums=[...new Set(votes.map(r=>r.num))], leo=votes.filter(r=>r.num==='40999').reduce((a,r)=>a+Number(r.votes||0),0);
+  el.textContent='Base TSE salva no painel: '+fmt(votes.length)+' registros'+(leo?' • Leonardo '+fmt(leo)+' votos':'')+' • '+nums.length+' candidato(s).';
+  el.className='status ok';
+  if($('voteProg'))$('voteProg').style.width='100%';
+}
+async function persistVotes(){
+  let nums=[...new Set(votes.map(r=>r.num))];
+  if(!nums.length)return;
+  await api('clear_votes',{candidate_numbers:nums});
+  for(let i=0;i<votes.length;i+=1200){
+    let rows=votes.slice(i,i+1200).map(r=>({candidate_number:r.num,city:r.city,zone:r.zone,section:r.sec,votes:r.votes}));
+    await api('save_votes_batch',{rows});
+    if($('voteStatus'))$('voteStatus').textContent='Salvando no painel… '+fmt(Math.min(i+1200,votes.length))+' / '+fmt(votes.length);
+  }
+}
+
 async function loadLeonardo(){leonardoHist=await fetch('/data/leonardo-historico.json').then(r=>r.json()); if($('leoRegion'))$('leoRegion').innerHTML='<option value="Todas">Todas as regiões</option>'+leonardoHist.regions.map(r=>'<option>'+r+'</option>').join('')}
 async function loadPlaces(){let us=Array.from({length:11},(_,i)=>'/data/locais-'+String(i).padStart(2,'0')+'.csv'),ts=await Promise.all(us.map(u=>fetch(u).then(r=>r.text()))),map=new Map();ts.forEach((t,i)=>{Papa.parse(t,{delimiter:';',skipEmptyLines:true}).data.forEach((a,j)=>{if(i===0&&j===0)return;if(a.length<5)return;let p={city:String(a[0]||'').trim(),zone:pad(a[1],3),sec:pad(a[2],4),bairro:String(a[3]||'SEM BAIRRO').trim()||'SEM BAIRRO',local:String(a[4]||'').trim()},k=p.zone+'|'+p.sec;if(p.zone==='000'||p.sec==='0000')return;if(!map.has(k))map.set(k,p);else{let cur=map.get(k);if((!cur.bairro||cur.bairro==='SEM BAIRRO')&&p.bairro&&p.bairro!=='SEM BAIRRO')cur.bairro=p.bairro;if(!cur.local&&p.local)cur.local=p.local;if(!cur.city&&p.city)cur.city=p.city}})});places=[...map.values()];fillCities()}
 function drawCands(){$('candChips').innerHTML=boot.candidates.map(c=>'<label class="cand"><input class="cc" type="checkbox" value="'+c.number+'" '+(active.has(String(c.number))?'checked':'')+'><span class="dot" style="background:'+c.color+'"></span><span><b>'+c.name+'</b> <small>'+c.number+' • '+(c.office||'')+'</small></span></label>').join('');document.querySelectorAll('.cc').forEach(x=>x.onchange=()=>{x.checked?active.add(x.value):active.delete(x.value);drawOfficial();drawWork();drawLeonardo()})}
 async function saveCand(){let c={name:$('candName').value.trim(),number:$('candNumber').value.trim(),office:$('candOffice').value.trim(),color:$('candColor').value.trim()||'#667085',enabled:true};if(!c.name||!dg(c.number))return toast('Informe nome e número.');try{await api('save_candidate',{candidate:c});boot=await api('bootstrap');active.add(dg(c.number));drawCands();toast('Candidato cadastrado. Recarregue os votos para incluir esse número.')}catch(e){toast(e.message)}}
 function pick(cs,ns){for(let n of ns){for(let c of cs)if(nm(c)===nm(n))return c}for(let n of ns){for(let c of cs)if(nm(c).includes(nm(n)))return c}return null}
 async function csvFile(f){if(!f.name.toLowerCase().endsWith('.zip'))return f;let z=await JSZip.loadAsync(await f.arrayBuffer()),cs=Object.values(z.files).filter(x=>x.name.toLowerCase().endsWith('.csv'));cs.sort((a,b)=>(b._data?.uncompressedSize||0)-(a._data?.uncompressedSize||0));if(!cs.length)throw Error('CSV não encontrado no ZIP.');return new File([await cs[0].async('uint8array')],cs[0].name,{type:'text/csv'})}
-async function loadVotes(e){let f0=e.target.files[0];if(!f0)return;$('voteStatus').textContent='Abrindo arquivo…';$('voteProg').parentElement.style.display='block';try{let f=await csvFile(f0),nums=new Set(boot.candidates.map(c=>String(c.number))),cfg=null,n=0;votes=[];await new Promise((ok,fail)=>Papa.parse(f,{header:true,delimiter:';',encoding:'ISO-8859-1',worker:true,skipEmptyLines:true,chunkSize:2097152,chunk:r=>{if(!cfg){let k=r.meta.fields||[];cfg={city:pick(k,['NM_MUNICIPIO']),z:pick(k,['NR_ZONA']),s:pick(k,['NR_SECAO']),num:pick(k,['NR_VOTAVEL']),v:pick(k,['QT_VOTOS'])};if(!cfg.city||!cfg.z||!cfg.s||!cfg.num||!cfg.v){fail(Error('Colunas do TSE não reconhecidas.'));return}}for(let a of r.data){let num=cl(a[cfg.num]);if(nums.has(num))votes.push({city:String(a[cfg.city]||'').trim(),zone:pad(a[cfg.z],3),sec:pad(a[cfg.s],4),num:num,votes:parseInt(dg(a[cfg.v])||0)})}n+=r.data.length;if(n%100000<5000){$('voteStatus').textContent='Processando… '+fmt(n)+' linhas';$('voteProg').style.width=Math.min(96,5+n/200000)+'%'}},complete:ok,error:fail}));$('voteProg').style.width='100%';$('voteStatus').textContent='Pronto: '+fmt(votes.length)+' registros dos candidatos cadastrados.';$('voteStatus').className='status ok';drawOfficial();drawWork();drawLeonardo();toast('Votos carregados.')}catch(e){$('voteStatus').textContent='Erro: '+e.message;$('voteStatus').className='status err'}}
+async function loadVotes(e){
+  let f0=e.target.files[0]; if(!f0)return;
+  $('voteStatus').textContent='Abrindo arquivo oficial…';
+  $('voteStatus').className='status';
+  $('voteProg').parentElement.style.display='block';
+  $('voteProg').style.width='4%';
+  try{
+    let f=await csvFile(f0), nums=new Set(boot.candidates.map(c=>String(c.number))), cfg=null, n=0, matched=0, ag=new Map();
+    await new Promise((ok,fail)=>Papa.parse(f,{
+      header:true,
+      delimiter:'',
+      encoding:'ISO-8859-1',
+      worker:true,
+      skipEmptyLines:true,
+      chunkSize:2097152,
+      chunk:r=>{
+        if(!cfg){
+          let k=r.meta.fields||[];
+          cfg={
+            city:pick(k,['NM_MUNICIPIO','MUNICIPIO','NM_UE']),
+            z:pick(k,['NR_ZONA','ZONA']),
+            s:pick(k,['NR_SECAO','SECAO','SEÇÃO']),
+            num:pick(k,['NR_VOTAVEL','NR_CANDIDATO','NUMERO_CANDIDATO']),
+            v:pick(k,['QT_VOTOS','QT_VOTOS_NOMINAIS','VOTOS'])
+          };
+          if(!cfg.city||!cfg.z||!cfg.s||!cfg.num||!cfg.v){
+            fail(Error('Esse arquivo não tem as colunas de votação por seção que o painel precisa. Use o botão “Baixar arquivo oficial CE”.'));
+            return;
+          }
+        }
+        for(let a of r.data){
+          let num=cl(a[cfg.num]);
+          if(!nums.has(num))continue;
+          let city=String(a[cfg.city]||'').trim(), zone=pad(a[cfg.z],3), sec=pad(a[cfg.s],4), vv=parseInt(dg(a[cfg.v])||0);
+          if(!city||zone==='000'||sec==='0000')continue;
+          let k=num+'|'+city+'|'+zone+'|'+sec;
+          ag.set(k,(ag.get(k)||0)+vv);
+          matched++;
+        }
+        n+=r.data.length;
+        if(n%100000<5000){
+          $('voteStatus').textContent='Processando arquivo… '+fmt(n)+' linhas • '+fmt(matched)+' registros dos candidatos';
+          $('voteProg').style.width=Math.min(92,6+n/180000)+'%';
+        }
+      },
+      complete:ok,
+      error:fail
+    }));
+    votes=[...ag].map(([k,v])=>{let [num,city,zone,sec]=k.split('|');return{num,city,zone,sec,votes:v}});
+    if(!votes.length)throw Error('Não encontrei votos dos candidatos cadastrados neste arquivo. Baixe novamente pelo botão “Baixar arquivo oficial CE” e selecione o ZIP ou CSV de votação por seção.');
+
+    let leoTotal=votes.filter(r=>r.num==='40999').reduce((a,r)=>a+r.votes,0);
+    let expected=Number(leonardoHist?.source_totals?.['2026']||0);
+    if(leoTotal&&expected&&leoTotal!==expected){
+      throw Error('O arquivo foi lido, mas a soma de Leonardo deu '+fmt(leoTotal)+' votos, diferente do total oficial de '+fmt(expected)+'. Para evitar gravar uma base parcial, nada foi salvo. Use o arquivo “CE - Votação por seção eleitoral - 2026”.');
+    }
+
+    $('voteProg').style.width='95%';
+    $('voteStatus').textContent='Arquivo validado. Salvando a base para não precisar carregar de novo…';
+    await persistVotes();
+    $('voteProg').style.width='100%';
+    setVoteStatus();
+    drawOfficial();drawWork();drawLeonardo();
+    toast('Base de votos salva. Agora os filtros por bairro, zona e seção ficam disponíveis sempre.');
+  }catch(e){
+    $('voteStatus').textContent='Erro: '+e.message;
+    $('voteStatus').className='status err';
+    $('voteProg').style.width='0%';
+  }
+}
+
 function fillCities(){let old=$('city')?$('city').value:'',cs=[...new Set(places.map(x=>x.city).filter(Boolean))].sort();$('city').innerHTML='<option value="">Todos os municípios</option>'+cs.map(x=>'<option '+(x===old?'selected':'')+'>'+x+'</option>').join('');if(!old&&cs.includes('FORTALEZA'))$('city').value='FORTALEZA'}
 function vmap(){let m=new Map();for(let r of votes){let k=r.zone+'|'+r.sec;if(!m.has(k))m.set(k,{});m.get(k)[r.num]=(m.get(k)[r.num]||0)+r.votes}return m}
 function refill(){let city=$('city').value,bo=$('bairro').value,zo=$('zone').value,p=places.filter(x=>!city||x.city===city),bs=[...new Set(p.map(x=>x.bairro).filter(Boolean))].sort();$('bairro').innerHTML='<option value="">Todos os bairros</option>'+bs.map(x=>'<option '+(x===bo?'selected':'')+'>'+x+'</option>').join('');p=p.filter(x=>!$('bairro').value||x.bairro===$('bairro').value);let zs=[...new Set(p.map(x=>x.zone))].sort();$('zone').innerHTML='<option value="">Todas</option>'+zs.map(x=>'<option '+(x===zo?'selected':'')+'>'+x+'</option>').join('')}
 function offRows(){let c=$('city').value,b=$('bairro').value,z=$('zone').value,s=$('section').value.trim()?pad($('section').value,4):'',vm=vmap();return places.filter(p=>(!c||p.city===c)&&(!b||p.bairro===b)&&(!z||p.zone===z)&&(!s||p.sec===s)).map(p=>Object.assign({},p,{v:vm.get(p.zone+'|'+p.sec)||{}}))}
-function drawOfficial(){if(!$('official'))return;refill();let rs=offRows(),sel=boot.candidates.filter(c=>active.has(String(c.number)));$('officialMetrics').innerHTML='<div class="metric"><small>Seções exibidas</small><b>'+fmt(rs.length)+'</b></div><div class="metric"><small>Bairros</small><b>'+fmt(new Set(rs.map(r=>r.bairro)).size)+'</b></div>'+sel.slice(0,2).map(c=>'<div class="metric dynamic" style="--c:'+c.color+'"><small>'+c.name+' '+c.number+'</small><b style="color:'+c.color+'">'+fmt(rs.reduce((a,r)=>a+(r.v[c.number]||0),0))+'</b></div>').join('');$('offHead').innerHTML='<tr><th>Bairro</th><th>Local</th><th>Zona</th><th>Seção</th>'+sel.map(c=>'<th class="num" style="color:'+c.color+'">'+c.name+'</th>').join('')+'</tr>';$('offBody').innerHTML=rs.slice(0,3000).map(r=>'<tr><td>'+r.bairro+'</td><td>'+r.local+'</td><td class="center">'+r.zone+'</td><td class="center">'+r.sec+'</td>'+sel.map(c=>'<td class="num" style="color:'+c.color+';font-weight:850">'+fmt(r.v[c.number]||0)+'</td>').join('')+'</tr>').join('');$('offTag').textContent=rs.length+' seções'}
+function drawOfficial(){
+  if(!$('official'))return;
+  refill();
+  let rs=offRows(), sel=boot.candidates.filter(c=>active.has(String(c.number)));
+  let city=$('city').value||'', bairro=$('bairro').value||'', zone=$('zone').value||'', sec=$('section').value.trim();
+  let scope=sec?('Seção '+pad(sec,4)):(zone?('Zona '+zone):(bairro||city||'Ceará'));
+  let hasAny=votes.length>0;
+  $('officialMetrics').innerHTML=
+    '<div class="metric"><small>Seções exibidas</small><b>'+fmt(rs.length)+'</b></div>'+
+    '<div class="metric"><small>Bairros</small><b>'+fmt(new Set(rs.map(r=>r.bairro)).size)+'</b></div>'+
+    sel.slice(0,2).map(c=>{
+      let has= votes.some(r=>r.num===String(c.number));
+      let total=rs.reduce((a,r)=>a+(r.v[c.number]||0),0);
+      return '<div class="metric dynamic" style="--c:'+c.color+'"><small>'+c.name+' • '+scope+'</small><b style="color:'+c.color+'">'+(has?fmt(total):'—')+'</b></div>';
+    }).join('');
+  $('offHead').innerHTML='<tr><th>Bairro</th><th>Local</th><th>Zona</th><th>Seção</th>'+sel.map(c=>'<th class="num" style="color:'+c.color+'">'+c.name+'</th>').join('')+'</tr>';
+  $('offBody').innerHTML=rs.slice(0,3000).map(r=>'<tr><td>'+r.bairro+'</td><td>'+r.local+'</td><td class="center">'+r.zone+'</td><td class="center">'+r.sec+'</td>'+sel.map(c=>{
+    let has=votes.some(v=>v.num===String(c.number));
+    return '<td class="num" style="color:'+c.color+';font-weight:850">'+(has?fmt(r.v[c.number]||0):'—')+'</td>';
+  }).join('')+'</tr>').join('');
+  $('offTag').textContent=hasAny?(rs.length+' seções • base TSE carregada'):'Base de votos ainda não carregada';
+}
+
 function exp(name,rows){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(rows,{delimiter:';'})],{type:'text/csv'}));a.download=name;a.click()}
 function exportOfficial(){let sel=boot.candidates.filter(c=>active.has(String(c.number)));exp('votacao_oficial.csv',offRows().map(r=>Object.assign({Municipio:r.city,Bairro:r.bairro,Local:r.local,Zona:r.zone,Secao:r.sec},Object.fromEntries(sel.map(c=>[c.name+' '+c.number,r.v[c.number]||0])))))}
 function drawLists(){$('savedLists').innerHTML=boot.lists.map(l=>'<label class="listCard"><input type="checkbox" class="lc" value="'+l.id+'" checked><span><b>'+l.name+'</b><small>'+fmt(l.people_count)+' pessoas • '+fmt(l.sections_count)+' seções</small></span></label>').join('');document.querySelectorAll('.lc').forEach(x=>x.onchange=workData)}
