@@ -5,10 +5,47 @@ const $=i=>document.getElementById(i), dg=v=>String(v??'').replace(/\.0$/,'').re
 let pw=sessionStorage.getItem('electionPassword')||'', boot={lists:[],candidates:[]}, places=[], votes=[], sections=[], active=new Set(), leonardoHist=null, leoSort='2026desc', leoMin=0, leoRegion='Todas';
 const fmt=n=>Number(n||0).toLocaleString('pt-BR');
 function toast(m){let x=document.createElement('div');x.className='toast';x.textContent=m;document.body.appendChild(x);setTimeout(()=>x.remove(),3000)}
-async function api(action,extra){let r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({password:pw,action:action},extra||{}))}),t=await r.text(),d={};try{d=JSON.parse(t)}catch{}if(!r.ok)throw Error(d.error||('Erro '+r.status));return d}
-function login(err){$('app').innerHTML='<div class="login"><div class="loginCard"><h1>🗳️ Painel Eleições 2026</h1><p>Área restrita.</p><div class="loginRow"><input id="pass" type="password" placeholder="Senha" autofocus><button id="go" class="btn orange">Entrar</button></div><div class="loginErr">'+(err||'')+'</div></div></div>';$('go').onclick=enter;$('pass').onkeydown=e=>{if(e.key==='Enter')enter()}}
-async function enter(){pw=$('pass').value;try{await api('auth');sessionStorage.setItem('electionPassword',pw);start()}catch{pw='';login('Senha incorreta.')}}
-async function start(){try{await api('auth')}catch{return login()} shell();try{await Promise.all([loadBoot(),loadPlaces(),loadLeonardo()]);await loadStoredVotes();drawCands();drawLists();drawOfficial();drawLeonardo();await workData()}catch(e){toast(e.message)}}
+async function api(action,extra){
+  let r;
+  try{
+    r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({password:pw,action:action},extra||{}))});
+  }catch(e){
+    let err=Error('BACKEND_OFFLINE');err.code='BACKEND_OFFLINE';throw err;
+  }
+  let t=await r.text(),d={};try{d=JSON.parse(t)}catch{}
+  if(!r.ok){
+    let err=Error(d.error||('Erro '+r.status));err.status=r.status;err.code=d.error||('HTTP_'+r.status);throw err;
+  }
+  return d;
+}
+function login(err){
+  $('app').innerHTML='<div class="login"><div class="loginCard"><h1>🗳️ Painel Eleições 2026</h1><p>Área restrita.</p><div class="loginRow"><input id="pass" type="password" placeholder="Senha" autofocus><button id="go" class="btn orange">Entrar</button></div><div class="loginErr">'+(err||'')+'</div></div></div>';
+  $('go').onclick=enter;$('pass').onkeydown=e=>{if(e.key==='Enter')enter()}
+}
+async function enter(){
+  pw=$('pass').value;
+  let btn=$('go'); if(btn){btn.disabled=true;btn.textContent='Entrando…'}
+  try{
+    await api('auth');
+    sessionStorage.setItem('electionPassword',pw);
+    start();
+  }catch(e){
+    let typed=pw; pw='';
+    if(e.status===401||e.code==='unauthorized')return login('Senha incorreta.');
+    login('Servidor iniciando ou temporariamente indisponível. A senha não foi considerada errada. Tente novamente em alguns segundos.');
+    let inp=$('pass');if(inp){inp.value=typed;inp.focus()}
+  }
+}
+async function start(){
+  try{await api('auth')}
+  catch(e){
+    if(e.status===401||e.code==='unauthorized'){sessionStorage.removeItem('electionPassword');pw='';return login('Senha incorreta.')}
+    return login('Servidor iniciando ou temporariamente indisponível. Tente novamente em alguns segundos.');
+  }
+  shell();
+  try{await Promise.all([loadBoot(),loadPlaces(),loadLeonardo()]);await loadStoredVotes();drawCands();drawLists();drawOfficial();drawLeonardo();await workData()}
+  catch(e){toast(e.message)}
+}
 function shell(){
  let h=[];
  h.push('<div class="wrap"><div class="top"><div><h1>🗳️ Painel Eleições 2026</h1><div class="sub">Votação oficial e área de trabalho separadas.</div><span class="okpill">BASE DE BAIRROS/SEÇÕES FIXA</span></div><button id="logout" class="btn red">Sair</button></div>');
