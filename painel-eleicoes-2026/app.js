@@ -1,8 +1,9 @@
 
 const API='https://jwbrygmzruoxihmjqazg.supabase.co/functions/v1/election-2026-panel';
+const AUTH='/api/auth';
 const TSE='https://cdn.tse.jus.br/estatistica/sead/odsele/votacao_secao/votacao_secao_2026_CE.zip';
 const $=i=>document.getElementById(i), dg=v=>String(v??'').replace(/\.0$/,'').replace(/\D/g,''), cl=v=>(dg(v).replace(/^0+/,'')||'0'), pad=(v,n)=>cl(v).padStart(n,'0'), nm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-let pw=sessionStorage.getItem('electionPassword')||'', boot={lists:[],candidates:[]}, places=[], votes=[], sections=[], active=new Set(), leonardoHist=null, leoSort='2026desc', leoMin=0, leoRegion='Todas';
+let pw=sessionStorage.getItem('electionPassword')||'', boot={lists:[],candidates:[]}, places=[], votes=[], sections=[], active=new Set(), leonardoHist=null, leoSort='2026desc', leoMin=0, leoRegion='Todas', backendOnline=true;
 const fmt=n=>Number(n||0).toLocaleString('pt-BR');
 function toast(m){let x=document.createElement('div');x.className='toast';x.textContent=m;document.body.appendChild(x);setTimeout(()=>x.remove(),3000)}
 async function api(action,extra){
@@ -18,33 +19,47 @@ async function api(action,extra){
   }
   return d;
 }
+async function authPanel(pass){
+  let r;
+  try{
+    r=await fetch(AUTH,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})});
+  }catch{
+    let e=Error('AUTH_OFFLINE');e.code='AUTH_OFFLINE';throw e;
+  }
+  let d={};try{d=await r.json()}catch{}
+  if(!r.ok){let e=Error(d.error||('Erro '+r.status));e.status=r.status;e.code=d.error||('HTTP_'+r.status);throw e}
+  return d;
+}
 function login(err){
   $('app').innerHTML='<div class="login"><div class="loginCard"><h1>🗳️ Painel Eleições 2026</h1><p>Área restrita.</p><div class="loginRow"><input id="pass" type="password" placeholder="Senha" autofocus><button id="go" class="btn orange">Entrar</button></div><div class="loginErr">'+(err||'')+'</div></div></div>';
   $('go').onclick=enter;$('pass').onkeydown=e=>{if(e.key==='Enter')enter()}
 }
 async function enter(){
   pw=$('pass').value;
-  let btn=$('go'); if(btn){btn.disabled=true;btn.textContent='Entrando…'}
+  let btn=$('go');if(btn){btn.disabled=true;btn.textContent='Entrando…'}
   try{
-    await api('auth');
+    await authPanel(pw);
     sessionStorage.setItem('electionPassword',pw);
     start();
   }catch(e){
-    let typed=pw; pw='';
+    let typed=pw;pw='';
     if(e.status===401||e.code==='unauthorized')return login('Senha incorreta.');
-    login('Servidor iniciando ou temporariamente indisponível. A senha não foi considerada errada. Tente novamente em alguns segundos.');
+    login('Não consegui validar o acesso agora. Atualize a página e tente novamente.');
     let inp=$('pass');if(inp){inp.value=typed;inp.focus()}
   }
 }
 async function start(){
-  try{await api('auth')}
+  try{await authPanel(pw)}
   catch(e){
-    if(e.status===401||e.code==='unauthorized'){sessionStorage.removeItem('electionPassword');pw='';return login('Senha incorreta.')}
-    return login('Servidor iniciando ou temporariamente indisponível. Tente novamente em alguns segundos.');
+    sessionStorage.removeItem('electionPassword');pw='';
+    return login(e.status===401?'Senha incorreta.':'Não consegui validar o acesso agora. Atualize a página e tente novamente.');
   }
   shell();
-  try{await Promise.all([loadBoot(),loadPlaces(),loadLeonardo()]);await loadStoredVotes();drawCands();drawLists();drawOfficial();drawLeonardo();await workData()}
-  catch(e){toast(e.message)}
+  try{
+    await Promise.all([loadBoot(),loadPlaces(),loadLeonardo()]);
+    await loadStoredVotes();
+    drawCands();drawLists();drawOfficial();drawLeonardo();await workData();
+  }catch(e){toast(e.message)}
 }
 function shell(){
  let h=[];
@@ -52,52 +67,76 @@ function shell(){
  h.push('<div class="nav"><button class="active" data-p="official">📊 VOTAÇÃO OFICIAL</button><button data-p="work">📁 LISTAS & TRABALHO</button><button data-p="leonardo">🟠 LEONARDO • HISTÓRICO</button></div>');
  h.push('<section id="official" class="page active"><div class="grid2"><div class="card"><div class="title">1. Base oficial de votos do TSE</div><div class="hint">Depois da primeira importação, os votos ficam salvos no painel e aparecem automaticamente nos filtros por município, bairro, zona e seção.</div><div class="actions"><a class="btn dark" href="'+TSE+'">Baixar arquivo oficial CE</a></div><input id="voteFile" class="file" type="file" accept=".zip,.csv"><div id="voteStatus" class="status">Verificando a base de votos salva...</div><div class="progress"><div id="voteProg"></div></div></div>');
  h.push('<div class="card"><div class="title">2. Candidatos da análise</div><div class="hint">Pode usar só Leonardo, Leonardo + Nenen, ou cadastrar outro candidato.</div><div id="candChips" class="candidates" style="margin-top:9px"></div><div class="candidateForm"><div class="field"><label>Nome</label><input id="candName" type="text"></div><div class="field"><label>Número</label><input id="candNumber" type="text"></div><div class="field"><label>Cargo</label><input id="candOffice" type="text"></div><div class="field"><label>Cor</label><input id="candColor" type="color" value="#f47c20"></div><button id="saveCand" class="btn blue">+ Cadastrar</button></div></div></div>');
- h.push('<div id="officialMetrics" class="metrics"></div><div class="card officialFiltersCard"><div class="filters"><div class="field"><label>Município</label><select id="city"></select></div><div class="field"><label>Bairro</label><select id="bairro"></select></div><div class="field"><label>Zona</label><select id="zone"></select></div><div class="field"><label>Seção</label><input id="section" type="text" placeholder="0184"></div></div><div class="actions"><button id="refreshOfficial" class="btn dark">Atualizar</button><button id="printCity" class="btn orange">🖨️ Imprimir município</button><button id="exportCity" class="btn outline">Bairros CSV</button><button id="exportOfficial" class="btn outline">Seções CSV</button><span id="offTag" class="tag"></span></div></div><div id="citySummaryCard" class="card citySummaryCard"><div class="cityPrintHead" id="cityPrintHead"></div><div class="citySummaryTop"><div><div class="title">Resumo do município por bairro</div><div class="hint">Ranking de bairros pela votação. Clique em um bairro para abrir o detalhamento das seções abaixo.</div></div><span id="citySummaryTag" class="tag"></span></div><div id="citySummaryMetrics" class="citySummaryMetrics"></div><div class="tableWrap citySummaryTable"><table><thead id="cityHead"></thead><tbody id="cityBody"></tbody></table></div><div class="cityPrintFooter">Fonte: Tribunal Superior Eleitoral (TSE) • Eleições 2026</div></div><div class="card sectionDetailCard"><div class="sectionTitleRow"><div><div class="title">Detalhamento por local e seção</div><div class="hint">Use os filtros acima ou clique em um bairro no resumo municipal.</div></div><span id="sectionScope" class="tag"></span></div><div class="tableWrap"><table><thead id="offHead"></thead><tbody id="offBody"></tbody></table></div></div></section>');
+ h.push('<div id="officialMetrics" class="metrics"></div><div class="card officialFiltersCard"><div class="filters"><div class="field"><label>Município</label><select id="city"></select></div><div class="field"><label>Bairro</label><select id="bairro"></select></div><div class="field"><label>Local / Colégio</label><select id="local"></select></div><div class="field"><label>Zona</label><select id="zone"></select></div><div class="field"><label>Seção</label><input id="section" type="text" placeholder="0184"></div></div><div class="actions"><button id="refreshOfficial" class="btn dark">Atualizar</button><button id="printCity" class="btn orange">🖨️ Imprimir município</button><button id="exportCity" class="btn outline">Bairros CSV</button><button id="exportOfficial" class="btn outline">Seções CSV</button><span id="offTag" class="tag"></span></div></div><div id="citySummaryCard" class="card citySummaryCard"><div class="cityPrintHead" id="cityPrintHead"></div><div class="citySummaryTop"><div><div class="title">Resumo do município por bairro</div><div class="hint">Ranking de bairros pela votação. Clique em um bairro para abrir o detalhamento das seções abaixo.</div></div><span id="citySummaryTag" class="tag"></span></div><div id="citySummaryMetrics" class="citySummaryMetrics"></div><div class="tableWrap citySummaryTable"><table><thead id="cityHead"></thead><tbody id="cityBody"></tbody></table></div><div class="cityPrintFooter">Fonte: Tribunal Superior Eleitoral (TSE) • Eleições 2026</div></div><div class="card sectionDetailCard"><div class="sectionTitleRow"><div><div class="title">Detalhamento por local e seção</div><div class="hint">Use os filtros acima ou clique em um bairro no resumo municipal.</div></div><span id="sectionScope" class="tag"></span></div><div class="tableWrap"><table><thead id="offHead"></thead><tbody id="offBody"></tbody></table></div></div></section>');
  h.push('<section id="work" class="page"><div class="gridWork"><aside class="card"><div class="title">Listas salvas</div><div class="hint">Disponíveis em qualquer computador/celular que entrar no painel.</div><div id="savedLists" style="margin-top:10px"></div><div class="sep"></div><div class="title">Adicionar / substituir lista</div><div class="field"><label>Nome da lista</label><input id="listName" type="text" placeholder="Ex.: Liderança João"></div><input id="listFile" class="file" type="file" accept=".pdf,.odt,.xlsx,.xls,.ods,.csv,.tsv,.txt,.json"><button id="saveList" class="btn blue" style="width:100%;margin-top:8px">Salvar lista no painel</button><div id="listStatus" class="status">Aceita PDF, ODT, Excel, CSV, TXT e JSON.</div></aside>');
  h.push('<main><div id="workMetrics" class="metrics"></div><div class="card"><div class="filters"><div class="field"><label>Bairro</label><select id="wBairro"></select></div><div class="field"><label>Local</label><select id="wLocal"></select></div><div class="field"><label>Zona</label><select id="wZone"></select></div><div class="field"><label>Seção</label><input id="wSection" type="text" placeholder="0184"></div></div><div class="actions"><button id="refreshWork" class="btn dark">Atualizar</button><button id="exportWork" class="btn outline">Exportar comparação</button><span id="workTag" class="tag"></span></div></div><div class="grid2" style="margin-top:12px"><div class="card"><div class="title">Concentração por bairro</div><div id="workBars" class="bars"></div></div><div class="card"><div class="title">Resumo das listas</div><div id="listSummary"></div></div></div><div class="card" style="margin-top:12px"><div class="title">Seções das listas</div><div class="hint">Os votos são totais agregados da seção, não votos atribuídos às pessoas da lista.</div><div class="tableWrap"><table><thead id="workHead"></thead><tbody id="workBody"></tbody></table></div></div></main></div></section>');
  h.push('<section id="leonardo" class="page"><div class="leoHero"><div><div class="eyebrow">LEONARDO PINHEIRO • DEPUTADO ESTADUAL</div><h2>Votação por município</h2><p>Histórico de 2006 a 2026, comparação municipal e análise para impressão.</p></div><div class="leoHeroBadge">40999</div></div><div id="leoSummary" class="leoSummary"></div><div class="leoSubnav"><button class="active" data-leo-view="lista">📋 LISTA & IMPRESSÃO</button><button data-leo-view="analise">📈 ANÁLISES</button></div><div id="leoListaView" class="leoView active"><div class="card leoTools"><div><div class="field"><label>Região de planejamento</label><select id="leoRegion"><option value="Todas">Todas as regiões</option></select></div><div class="leoSearch" style="margin-top:8px"><input id="leoSearch" type="text" placeholder="Buscar município"></div></div><div><div class="leoSorts"><button class="leoSort active" data-sort="2026desc">Mais votos 2026</button><button class="leoSort" data-sort="alpha">Alfabética</button><button class="leoSort" data-sort="cresceu">Maior ganho em votos</button><button class="leoSort" data-sort="caiu">Maior queda em votos</button><button class="leoSort" data-sort="2022desc">Mais votos 2022</button></div><div class="leoThresholds"><span>Faixa 2026:</span><button class="leoMin active" data-min="0">Todos</button><button class="leoMin" data-min="100">≥ 100</button><button class="leoMin" data-min="300">≥ 300</button><button class="leoMin" data-min="500">≥ 500</button><button class="leoMin" data-min="1000">≥ 1.000</button></div></div><div class="actions"><button id="leoExport" class="btn outline">Baixar planilha</button><button id="leoPrint" class="btn orange">Imprimir</button><span id="leoTag" class="tag"></span></div></div><div class="card" style="margin-top:12px"><div class="title">Município por município</div><div class="hint">2026 já está fixo com os 184 municípios informados. A diferença absoluta é o principal indicador; o percentual é complementar.</div><div class="tableWrap leoTable"><table><thead><tr><th>Nº</th><th>Município</th><th class="num">Eleitores</th><th class="num">2006</th><th class="num">2010</th><th class="num">2014</th><th class="num">2018</th><th class="num">2022</th><th class="num leo2026">2026</th><th class="num">Dif. votos</th><th class="num">% 22→26</th></tr></thead><tbody id="leoBody"></tbody></table></div></div></div><div id="leoAnaliseView" class="leoView"><div id="leoInsights" class="leoInsightGrid"></div><div class="card regionBoard"><div class="title">Análise por região</div><div class="hint">Clique em uma região para abrir o estudo dela. Ranking e gráficos são recalculados automaticamente.</div><div id="leoRegionCards" class="regionCards"></div></div><div class="grid2 leoCharts"><div class="card"><div class="title">Evolução total por eleição</div><div id="leoTrend" class="trend"></div></div><div class="card"><div class="title">Top municípios em 2026</div><div id="leoTop" class="bars"></div></div></div><div class="grid2 leoCharts"><div class="card"><div class="title">Distribuição da votação em 2026</div><div class="hint">Quantidade de municípios em cada faixa de votos.</div><div id="leoBands" class="bands"></div></div><div class="card"><div class="title">Movimento 2022 → 2026</div><div class="hint">Ganhos e perdas em votos absolutos, sem distorção de bases pequenas.</div><div id="leoMovement"></div></div></div><div class="grid2 leoCharts"><div class="card"><div class="title">Maiores ganhos em votos</div><div id="leoGains" class="bars"></div></div><div class="card"><div class="title">Maiores perdas em votos</div><div id="leoLosses" class="bars"></div></div></div></div></section>');
  h.push('</div>');
  $('app').innerHTML=h.join('');
  document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.p).classList.add('active');if(b.dataset.p==='work')workData();if(b.dataset.p==='leonardo')drawLeonardo()});
- $('logout').onclick=()=>{sessionStorage.removeItem('electionPassword');pw='';login()}; $('voteFile').onchange=loadVotes; $('saveCand').onclick=saveCand; $('refreshOfficial').onclick=drawOfficial; $('exportOfficial').onclick=exportOfficial; $('exportCity').onclick=exportCitySummary; $('printCity').onclick=printCitySummary; ['city','bairro','zone'].forEach(i=>$(i).onchange=drawOfficial); $('section').oninput=drawOfficial; $('saveList').onclick=saveList; $('refreshWork').onclick=drawWork; $('exportWork').onclick=exportWork; ['wBairro','wLocal','wZone'].forEach(i=>$(i).onchange=drawWork); $('wSection').oninput=drawWork; document.querySelectorAll('.leoSubnav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.leoSubnav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.leoView').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.leoView==='lista'?'leoListaView':'leoAnaliseView').classList.add('active');}); $('leoSearch').oninput=drawLeonardo; $('leoRegion').onchange=()=>{leoRegion=$('leoRegion').value;drawLeonardo()}; document.querySelectorAll('.leoSort').forEach(x=>x.onclick=()=>{leoSort=x.dataset.sort;document.querySelectorAll('.leoSort').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); document.querySelectorAll('.leoMin').forEach(x=>x.onclick=()=>{leoMin=Number(x.dataset.min||0);document.querySelectorAll('.leoMin').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); $('leoExport').onclick=exportLeonardo; $('leoPrint').onclick=()=>window.print();
+ $('logout').onclick=()=>{sessionStorage.removeItem('electionPassword');pw='';login()}; $('voteFile').onchange=loadVotes; $('saveCand').onclick=saveCand; $('refreshOfficial').onclick=drawOfficial; $('exportOfficial').onclick=exportOfficial; $('exportCity').onclick=exportCitySummary; $('printCity').onclick=printCitySummary; ['city','bairro','local','zone'].forEach(i=>$(i).onchange=drawOfficial); $('section').oninput=drawOfficial; $('saveList').onclick=saveList; $('refreshWork').onclick=drawWork; $('exportWork').onclick=exportWork; ['wBairro','wLocal','wZone'].forEach(i=>$(i).onchange=drawWork); $('wSection').oninput=drawWork; document.querySelectorAll('.leoSubnav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.leoSubnav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.leoView').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.leoView==='lista'?'leoListaView':'leoAnaliseView').classList.add('active');}); $('leoSearch').oninput=drawLeonardo; $('leoRegion').onchange=()=>{leoRegion=$('leoRegion').value;drawLeonardo()}; document.querySelectorAll('.leoSort').forEach(x=>x.onclick=()=>{leoSort=x.dataset.sort;document.querySelectorAll('.leoSort').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); document.querySelectorAll('.leoMin').forEach(x=>x.onclick=()=>{leoMin=Number(x.dataset.min||0);document.querySelectorAll('.leoMin').forEach(y=>y.classList.remove('active'));x.classList.add('active');drawLeonardo()}); $('leoExport').onclick=exportLeonardo; $('leoPrint').onclick=()=>window.print();
 }
-async function loadBoot(){boot=await api('bootstrap');active=new Set(boot.candidates.filter(c=>c.enabled).map(c=>String(c.number)))}
-
-async function loadStoredVotes(){
-  let nums=boot.candidates.map(c=>String(c.number)).filter(Boolean);
+async function loadBoot(){
   try{
+    boot=await api('bootstrap');
+    backendOnline=true;
+  }catch{
+    backendOnline=false;
+    boot={lists:[],candidates:[{id:'local-40999',name:'LEONARDO PINHEIRO',number:'40999',office:'DEPUTADO ESTADUAL',color:'#f47c20',enabled:true,sort_order:1}]};
+  }
+  active=new Set(boot.candidates.filter(c=>c.enabled).map(c=>String(c.number)));
+}
+async function loadStoredVotes(){
+  try{
+    let raw=localStorage.getItem('electionVotes2026');
+    if(raw){
+      let arr=JSON.parse(raw);
+      if(Array.isArray(arr)&&arr.length){
+        votes=arr.map(r=>Array.isArray(r)?{city:r[0],zone:r[1],sec:r[2],num:r[3],votes:Number(r[4]||0)}:r);
+        setVoteStatus();
+        return;
+      }
+    }
+  }catch{}
+  if(!backendOnline){votes=[];setVoteStatus();return}
+  try{
+    let nums=boot.candidates.map(c=>String(c.number)).filter(Boolean);
     let d=await api('votes',{candidate_numbers:nums});
     votes=(Array.isArray(d)?d:[]).map(r=>({city:String(r.city||'').trim(),zone:pad(r.zone,3),sec:pad(r.section,4),num:cl(r.candidate_number),votes:Number(r.votes||0)}));
+    if(votes.length)try{localStorage.setItem('electionVotes2026',JSON.stringify(votes.map(r=>[r.city,r.zone,r.sec,r.num,r.votes])))}catch{}
     setVoteStatus();
-  }catch(e){
-    votes=[];
-    setVoteStatus('Não consegui carregar a base salva: '+e.message,true);
+  }catch{
+    backendOnline=false;votes=[];setVoteStatus();
   }
 }
 function setVoteStatus(msg,isErr){
-  let el=$('voteStatus'); if(!el)return;
+  let el=$('voteStatus');if(!el)return;
   if(msg){el.textContent=msg;el.className='status '+(isErr?'err':'ok');return}
   if(!votes.length){
-    el.textContent='Nenhuma base de votos salva ainda. Baixe o arquivo oficial CE acima e importe uma vez.';
+    el.textContent='Consulta pronta. Baixe o arquivo oficial CE e importe uma vez; depois os votos ficam salvos neste navegador.';
     el.className='status';
     return;
   }
-  let nums=[...new Set(votes.map(r=>r.num))], leo=votes.filter(r=>r.num==='40999').reduce((a,r)=>a+Number(r.votes||0),0);
-  el.textContent='Base TSE salva no painel: '+fmt(votes.length)+' registros'+(leo?' • Leonardo '+fmt(leo)+' votos':'')+' • '+nums.length+' candidato(s).';
+  let nums=[...new Set(votes.map(r=>r.num))],leo=votes.filter(r=>r.num==='40999').reduce((a,r)=>a+Number(r.votes||0),0);
+  el.textContent='Base TSE disponível: '+fmt(votes.length)+' registros'+(leo?' • Leonardo '+fmt(leo)+' votos':'')+' • salva neste navegador.';
   el.className='status ok';
   if($('voteProg'))$('voteProg').style.width='100%';
 }
 async function persistVotes(){
-  let nums=[...new Set(votes.map(r=>r.num))];
-  if(!nums.length)return;
-  await api('clear_votes',{candidate_numbers:nums});
-  for(let i=0;i<votes.length;i+=1200){
-    let rows=votes.slice(i,i+1200).map(r=>({candidate_number:r.num,city:r.city,zone:r.zone,section:r.sec,votes:r.votes}));
-    await api('save_votes_batch',{rows});
-    if($('voteStatus'))$('voteStatus').textContent='Salvando no painel… '+fmt(Math.min(i+1200,votes.length))+' / '+fmt(votes.length);
-  }
+  try{
+    localStorage.setItem('electionVotes2026',JSON.stringify(votes.map(r=>[r.city,r.zone,r.sec,r.num,r.votes])));
+  }catch(e){toast('Base carregada, mas o navegador não conseguiu salvá-la permanentemente.')}
+  if(!backendOnline)return;
+  try{
+    let nums=[...new Set(votes.map(r=>r.num))];
+    if(!nums.length)return;
+    await api('clear_votes',{candidate_numbers:nums});
+    for(let i=0;i<votes.length;i+=1200){
+      let rows=votes.slice(i,i+1200).map(r=>({candidate_number:r.num,city:r.city,zone:r.zone,section:r.sec,votes:r.votes}));
+      await api('save_votes_batch',{rows});
+    }
+  }catch{backendOnline=false}
 }
-
 async function loadLeonardo(){leonardoHist=await fetch('/data/leonardo-historico.json').then(r=>r.json()); if($('leoRegion'))$('leoRegion').innerHTML='<option value="Todas">Todas as regiões</option>'+leonardoHist.regions.map(r=>'<option>'+r+'</option>').join('')}
 async function loadPlaces(){let us=Array.from({length:11},(_,i)=>'/data/locais-'+String(i).padStart(2,'0')+'.csv'),ts=await Promise.all(us.map(u=>fetch(u).then(r=>r.text()))),map=new Map();ts.forEach((t,i)=>{Papa.parse(t,{delimiter:';',skipEmptyLines:true}).data.forEach((a,j)=>{if(i===0&&j===0)return;if(a.length<5)return;let p={city:String(a[0]||'').trim(),zone:pad(a[1],3),sec:pad(a[2],4),bairro:String(a[3]||'SEM BAIRRO').trim()||'SEM BAIRRO',local:String(a[4]||'').trim()},k=p.zone+'|'+p.sec;if(p.zone==='000'||p.sec==='0000')return;if(!map.has(k))map.set(k,p);else{let cur=map.get(k);if((!cur.bairro||cur.bairro==='SEM BAIRRO')&&p.bairro&&p.bairro!=='SEM BAIRRO')cur.bairro=p.bairro;if(!cur.local&&p.local)cur.local=p.local;if(!cur.city&&p.city)cur.city=p.city}})});places=[...map.values()];fillCities()}
 function drawCands(){$('candChips').innerHTML=boot.candidates.map(c=>'<label class="cand"><input class="cc" type="checkbox" value="'+c.number+'" '+(active.has(String(c.number))?'checked':'')+'><span class="dot" style="background:'+c.color+'"></span><span><b>'+c.name+'</b> <small>'+c.number+' • '+(c.office||'')+'</small></span></label>').join('');document.querySelectorAll('.cc').forEach(x=>x.onchange=()=>{x.checked?active.add(x.value):active.delete(x.value);drawOfficial();drawWork();drawLeonardo()})}
@@ -111,7 +150,7 @@ async function loadVotes(e){
   $('voteProg').parentElement.style.display='block';
   $('voteProg').style.width='4%';
   try{
-    let f=await csvFile(f0), nums=new Set(boot.candidates.map(c=>String(c.number))), cfg=null, n=0, matched=0, ag=new Map();
+    let f=await csvFile(f0), nums=new Set(active.size?[...active]:['40999']), cfg=null, n=0, matched=0, ag=new Map();
     await new Promise((ok,fail)=>Papa.parse(f,{
       header:true,
       delimiter:'',
@@ -177,9 +216,25 @@ async function loadVotes(e){
 
 function fillCities(){let old=$('city')?$('city').value:'',cs=[...new Set(places.map(x=>x.city).filter(Boolean))].sort();$('city').innerHTML='<option value="">Todos os municípios</option>'+cs.map(x=>'<option '+(x===old?'selected':'')+'>'+x+'</option>').join('');if(!old&&cs.includes('FORTALEZA'))$('city').value='FORTALEZA'}
 function vmap(){let m=new Map();for(let r of votes){let k=r.zone+'|'+r.sec;if(!m.has(k))m.set(k,{});m.get(k)[r.num]=(m.get(k)[r.num]||0)+r.votes}return m}
-function refill(){let city=$('city').value,bo=$('bairro').value,zo=$('zone').value,p=places.filter(x=>!city||x.city===city),bs=[...new Set(p.map(x=>x.bairro).filter(Boolean))].sort();$('bairro').innerHTML='<option value="">Todos os bairros</option>'+bs.map(x=>'<option '+(x===bo?'selected':'')+'>'+x+'</option>').join('');p=p.filter(x=>!$('bairro').value||x.bairro===$('bairro').value);let zs=[...new Set(p.map(x=>x.zone))].sort();$('zone').innerHTML='<option value="">Todas</option>'+zs.map(x=>'<option '+(x===zo?'selected':'')+'>'+x+'</option>').join('')}
-function offRows(){let c=$('city').value,b=$('bairro').value,z=$('zone').value,s=$('section').value.trim()?pad($('section').value,4):'',vm=vmap();return places.filter(p=>(!c||p.city===c)&&(!b||p.bairro===b)&&(!z||p.zone===z)&&(!s||p.sec===s)).map(p=>Object.assign({},p,{v:vm.get(p.zone+'|'+p.sec)||{}}))}
-
+function refill(){
+  let city=$('city').value,bo=$('bairro').value,lo=$('local').value,zo=$('zone').value;
+  let p=places.filter(x=>!city||x.city===city);
+  let bs=[...new Set(p.map(x=>x.bairro).filter(Boolean))].sort();
+  $('bairro').innerHTML='<option value="">Todos os bairros</option>'+bs.map(x=>'<option value="'+x.replace(/"/g,'&quot;')+'">'+x+'</option>').join('');
+  if(bo&&bs.includes(bo))$('bairro').value=bo;else $('bairro').value='';
+  p=p.filter(x=>!$('bairro').value||x.bairro===$('bairro').value);
+  let ls=[...new Set(p.map(x=>x.local).filter(Boolean))].sort();
+  $('local').innerHTML='<option value="">Todos os locais / colégios</option>'+ls.map(x=>'<option value="'+x.replace(/"/g,'&quot;')+'">'+x+'</option>').join('');
+  if(lo&&ls.includes(lo))$('local').value=lo;else $('local').value='';
+  p=p.filter(x=>!$('local').value||x.local===$('local').value);
+  let zs=[...new Set(p.map(x=>x.zone))].sort();
+  $('zone').innerHTML='<option value="">Todas</option>'+zs.map(x=>'<option value="'+x+'">'+x+'</option>').join('');
+  if(zo&&zs.includes(zo))$('zone').value=zo;else $('zone').value='';
+}
+function offRows(){
+  let c=$('city').value,b=$('bairro').value,l=$('local').value,z=$('zone').value,s=$('section').value.trim()?pad($('section').value,4):'',vm=vmap();
+  return places.filter(p=>(!c||p.city===c)&&(!b||p.bairro===b)&&(!l||p.local===l)&&(!z||p.zone===z)&&(!s||p.sec===s)).map(p=>Object.assign({},p,{v:vm.get(p.zone+'|'+p.sec)||{}}))
+}
 function citySummaryRows(){
   let city=$('city')?.value||'';
   if(!city)return[];
@@ -231,7 +286,7 @@ function drawCitySummary(){
   document.querySelectorAll('.cityRow').forEach(tr=>tr.onclick=()=>{
     let b=tr.dataset.bairro;
     if([...$('bairro').options].some(o=>o.value===b))$('bairro').value=b;
-    $('zone').value=''; $('section').value='';
+    $('local').value=''; $('zone').value=''; $('section').value='';
     drawOfficial();
     $('sectionScope')?.scrollIntoView({behavior:'smooth',block:'center'});
   });
@@ -259,8 +314,8 @@ function drawOfficial(){
   if(!$('official'))return;
   refill();
   let rs=offRows(), sel=boot.candidates.filter(c=>active.has(String(c.number)));
-  let city=$('city').value||'', bairro=$('bairro').value||'', zone=$('zone').value||'', sec=$('section').value.trim();
-  let scope=sec?('Seção '+pad(sec,4)):(zone?('Zona '+zone):(bairro||city||'Ceará'));
+  let city=$('city').value||'', bairro=$('bairro').value||'', local=$('local').value||'', zone=$('zone').value||'', sec=$('section').value.trim();
+  let scope=sec?('Seção '+pad(sec,4)):(zone?('Zona '+zone):(local||bairro||city||'Ceará'));
   let hasAny=votes.length>0;
   $('officialMetrics').innerHTML=
     '<div class="metric"><small>Seções exibidas</small><b>'+fmt(rs.length)+'</b></div>'+
@@ -311,7 +366,11 @@ async function parseList(f){
  return r.map(x=>({name:na?String(x[na]||'').trim():'Pessoa',zone:pad(x[z],3),section:pad(x[sec],4)})).filter(x=>x.zone!=='000'&&x.section!=='0000')
 }
 async function saveList(){let f=$('listFile').files[0],name=$('listName').value.trim()||(f?f.name.replace(/\.[^.]+$/,''):'');if(!f||!name)return toast('Escolha o arquivo e informe o nome.');$('listStatus').textContent='Lendo e salvando…';try{let rows=await parseList(f),r=await api('save_list',{name:name,rows:rows});$('listStatus').textContent='Salva: '+fmt(r.people_count)+' pessoas • '+fmt(r.sections_count)+' seções.';$('listStatus').className='status ok';boot=await api('bootstrap');drawCands();drawLists();await workData()}catch(e){$('listStatus').textContent='Erro: '+e.message;$('listStatus').className='status err'}}
-async function workData(){let ids=[...document.querySelectorAll('.lc:checked')].map(x=>x.value);try{sections=ids.length?await api('sections',{list_ids:ids}):[];drawWork()}catch(e){toast(e.message)}}
+async function workData(){
+  if(!backendOnline){sections=[];if($('work'))drawWork();return}
+  let ids=[...document.querySelectorAll('.lc:checked')].map(x=>x.value);
+  try{sections=ids.length?await api('sections',{list_ids:ids}):[];drawWork()}catch(e){backendOnline=false;sections=[];drawWork()}
+}
 function workBase(){let city=$('city').value||'FORTALEZA',vm=vmap(),pm=new Map();for(let p of places)if(!city||p.city===city)pm.set(p.zone+'|'+p.sec,p);let ag=new Map();for(let s of sections){let k=s.zone+'|'+s.section;if(!ag.has(k))ag.set(k,{zone:s.zone,sec:s.section,people:0,lists:new Set()});let a=ag.get(k);a.people+=Number(s.people_count||0);a.lists.add(s.list_name)}return [...ag].map(([k,a])=>{let p=pm.get(k)||{},v=vm.get(a.zone+'|'+a.sec)||{};return Object.assign({},a,{bairro:p.bairro||'',local:p.local||'',v:v,lists:[...a.lists].join(', ')})})}
 function wfill(base){let bo=$('wBairro').value,lo=$('wLocal').value,zo=$('wZone').value,bs=[...new Set(base.map(x=>x.bairro).filter(Boolean))].sort();$('wBairro').innerHTML='<option value="">Todos os bairros</option>'+bs.map(x=>'<option '+(x===bo?'selected':'')+'>'+x+'</option>').join('');let f=base.filter(x=>!$('wBairro').value||x.bairro===$('wBairro').value),ls=[...new Set(f.map(x=>x.local).filter(Boolean))].sort(),zs=[...new Set(f.map(x=>x.zone))].sort();$('wLocal').innerHTML='<option value="">Todos os locais</option>'+ls.map(x=>'<option '+(x===lo?'selected':'')+'>'+x+'</option>').join('');$('wZone').innerHTML='<option value="">Todas</option>'+zs.map(x=>'<option '+(x===zo?'selected':'')+'>'+x+'</option>').join('')}
 function wrows(){let b=$('wBairro').value,l=$('wLocal').value,z=$('wZone').value,s=$('wSection').value.trim()?pad($('wSection').value,4):'';return workBase().filter(r=>(!b||r.bairro===b)&&(!l||r.local===l)&&(!z||r.zone===z)&&(!s||r.sec===s)).sort((a,b)=>b.people-a.people)}
